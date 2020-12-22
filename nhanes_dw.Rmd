@@ -1,0 +1,240 @@
+---
+title: "Download NHANES"
+author: "S.H.Hosseini"
+date: "25/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# National Health and Nutrition Examination Survey (NHANES)
+
+The National Health and Nutrition Examination Survey (NHANES) includes a series of data related the health and nutritional status of adults and children in the United States. You can find more information about NHANES here: https://www.cdc.gov/nchs/nhanes/about_nhanes.htm
+
+The data is available online and free of use. Here I only show how to download and join a couple of datasets. However, you can follow instructions below and combine as many as files as you require. 
+
+# The pacakges required
+To download and clean the data we require haven and tidyverse . Just in case we need to work with date and time vars we can install and load lubridate and hms. I also prefer to clean the vars names so I load janiotr to be able to use clean_names() function. 
+
+```{r}
+library(haven)
+library(tidyverse)
+library(lubridate)
+library(hms)
+library(janitor)
+
+```
+
+
+# Download the files required
+
+NHANES includes several datasets including demographic data, dietary data, examination data and laboratory data. Each dataset could also include several files. For instance demographic dataset includes only one file. However, the examination data contains information about blood pressure, body measures, oral health etc. 
+
+Here, we focus on few files including demographic, blood pressure, body measures, and finally insulin an iron status (from laboratory datasets). These datasets were all collected in 2017-2018. Although, NHANES is not a longitudinal dataset, many studies tend to pool NAHNES data over years and I will show you how to do it later. 
+
+## Download the demographic data
+To download the demographic data we can simply use the online address of the file. You could go to:
+
+https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=2017
+
+, and then find the location of file under "Data File" that is in "xpt" format. 
+
+
+```{r}
+demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.XPT") %>%
+  clean_names()
+
+```
+
+
+demo_2017 includes several vars and I will not change the vars names for now because we are going to append 2017-2018 with other datasets so, we would better keep the columns as they are. 
+
+## Download blood pressure and body measures from Examination Data along with insulin and iron status from Laboratory Dataset. 
+
+The Examination Data for 2017-2018 can be found here: https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=2017
+
+[The Examination Data for 2017-2018 can be found here:] (https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=2017)
+
+
+The Laboratory Data for 2017-2018 can be found here: 
+https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear=2017
+
+It should be noted that there will be several missing values in the final dataset. This is because not every person participated in the primary sample was eligible to participate in the all the examinations or laboratory tests conducted. For instance, in the case of insulin data, only individuals above 12 years of age were taken into consideration.
+
+
+```{r}
+# blood pressure data
+blood_pressure_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/BPX_J.XPT") %>%
+  clean_names()
+
+## body measures data
+body_measures_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/BMX_J.XPT") %>%
+  clean_names()
+
+## insulin data
+insulin_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/INS_J.XPT") %>%
+  clean_names()
+
+## iron status 
+iron_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/FETIB_J.XPT") %>%
+  clean_names()
+```
+
+## Joining the datasets 
+
+Each individual is assigned an ID stored in the seqn var and we are going to use seqn for joining the downloaded datasets. Here we can use left_join() function in dplyr however, it takes some times to include every dataset (example is provided below). So, it seems that join_all() function from plyr package is a less time consuming choice. Note that you are supposed to choose the type of JOIN in plyr::join_all() function that is left here. 
+
+```{r}
+## using dplyr to join 3 datasts. 
+nh_2017_dplyr <- left_join(x = demo_2017,y = blood_pressure_2017,by="seqn") %>%
+              left_join(.,body_measures_2017,by="seqn")
+    
+## using join_all from plyr. 
+
+nh_2017 <- plyr::join_all(dfs = list(demo_2017,body_measures_2017,blood_pressure_2017,iron_2017,insulin_2017),by = "seqn",type = "left")
+
+```
+
+
+
+## Cleaning the created dataset
+
+The file created here includes 9254 observations and 98 variables. Using the documentations for each file I am going to keep only a subset of columns as an example. 
+
+For instance the 2017-2018 documentation of demographic file can be found here: 
+
+### Variable in Deomgraphic File
+
+```{r}
+nh_2017 <- nh_2017 %>%
+  select(seqn,
+         cycle = sddsrvyr,
+         gender = riagendr,
+         age = ridageyr, 
+         race = ridreth3, 
+         birth_country = 
+         )
+
+
+## race=1 -> mexaican-american,race=2 -> hispanic, race=3 -> white, race=4 -> black, race=5 -> 
+```
+
+# Importing all data files into one dataset
+
+.text-center+ .text-center a
+https://wwwn.cdc.gov/Nchs/Nhanes/1999-2000/AUX1.XPT
+```{r}
+library(rvest)
+file_list <- tibble(
+  BeginYear = seq.int(from = 1999,to = 2017,2),
+  EndYear = seq.int(from = 2000,to = 2018,2),
+  Year = paste0(BeginYear,sep="-",EndYear), 
+  examineation_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=",BeginYear),
+  labratory_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear=",BeginYear),
+  demographic_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=",BeginYear), 
+  dietary_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Dietary&CycleBeginYear=",BeginYear) 
+)
+
+# pivot so we can map the links 
+file_list <- file_list %>%
+  pivot_longer(cols = contains("links"),names_to="name",values_to="page")
+
+
+links_get <- function(page) {
+  links <- read_html(page)
+  links %>% 
+    html_nodes(".text-center+ .text-center a") %>%
+    html_attr("href") %>% 
+    as_tibble() %>% 
+    rename("links" = "value") %>%
+    mutate(links=paste0("https://wwwn.cdc.gov",links)) %>%
+    distinct(links,.keep_all = T)
+
+}
+
+
+
+#Scrape the links
+file_list1 <- file_list %>% 
+  mutate(files_location = map(page, links_get))
+
+## unnest the links 
+file_list1 <- file_list1 %>%
+  unnest(files_location,names_repair = "minimal") 
+
+## keep the files whose types are XPT
+file_list1 <- file_list1 %>%
+  filter(links == stringr::str_match_all(string = links,pattern = ".*XPT")) %>%
+  distinct(links,.keep_all = T)
+## example files for demographic and examinatio
+
+## first we make a function to read the data with XPT type from the links varaible  
+import_xpt <- function(links) {
+  df <- haven::read_xpt(links)
+  df
+}
+
+set.seed(1234)
+
+# randomly choose 3 examination file to download 
+
+examination_links <- file_list1 %>%
+  filter(name == "examineation_links") %>%
+  sample_n(3)
+
+# choose the demographic files from  demographic file to download 
+demographic_links <- file_list1 %>%
+  filter(name == "demographic_links",BeginYear %in% c(2001,2017)) 
+  
+
+
+
+## download the demographic files
+
+demographic_data <- demographic_links %>%
+  mutate(data1 = map(links,import_xpt))  %>%
+  unnest(data1,names_repair = "minimal")
+
+
+
+examination_data <- examination %>%
+  mutate(data1 = map(links,import_xpt))  %>%
+  unnest(data1,names_repair = "minimal")
+
+```
+
+## Varaibles Name Repair
+
+```{r}
+library(stringr)
+var_names_demographic_page <- read_html("https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.htm#SEQN")
+
+var_names_demographic <-  var_names_demographic_page %>% 
+    html_nodes("#CodebookLinks a") %>%
+  html_text() %>%
+  as_tibble()
+
+var_names_demographic <- var_names_demographic %>%
+separate(value,into = c("current_name","var_name"),sep = "-") %>%
+  mutate(var_name = str_squish(var_name),
+         current_name =str_squish(current_name)
+         ) 
+
+demographic_data1 <- demographic_data %>%
+  as.data.frame()
+var_names_demographic <- var_names_demographic %>%
+  as.data.frame()
+
+
+match(x=var_names_demographic[,"current_name"],names(demographic_data1))
+names(demographic_data1)[match(x=var_names_demographic[,"current_name"],names(demographic_data1))] = var_names_demographic[,"var_name"]
+demographic_data1 %>%
+  View()
+```
+
+```{r}
+demographic
+```
+
