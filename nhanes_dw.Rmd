@@ -24,7 +24,10 @@ library(tidyverse)
 library(lubridate)
 library(hms)
 library(janitor)
-
+library(glue)
+library(rvest)
+library(stringr)
+library(data.table)
 ```
 
 
@@ -105,7 +108,7 @@ The file created here includes 9254 observations and 98 variables. Using the doc
 
 For instance the 2017-2018 documentation of demographic file can be found here: 
 
-### Variable in Deomgraphic File
+## Variable in Deomgraphic File
 
 ```{r}
 nh_2017 <- nh_2017 %>%
@@ -123,10 +126,12 @@ nh_2017 <- nh_2017 %>%
 
 # Importing all data files into one dataset
 
-.text-center+ .text-center a
-https://wwwn.cdc.gov/Nchs/Nhanes/1999-2000/AUX1.XPT
+Below, you could find the codes to download all the data files available at NHANES webpage since 1999. I used rvest package facilitating web scraping in R.  
+
+Initially, I created the links for examination,laboratory, demographic and dietary data, then I reshape the dataset incluidng the links so I can map a function to each link.  
+
+## links to the datasets
 ```{r}
-library(rvest)
 file_list <- tibble(
   BeginYear = seq.int(from = 1999,to = 2017,2),
   EndYear = seq.int(from = 2000,to = 2018,2),
@@ -137,11 +142,11 @@ file_list <- tibble(
   dietary_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Dietary&CycleBeginYear=",BeginYear) 
 )
 
-# pivot so we can map the links 
+# pivot so we can map the functions to the links 
 file_list <- file_list %>%
   pivot_longer(cols = contains("links"),names_to="name",values_to="page")
 
-
+## function links_get so it can get the address for the datasets
 links_get <- function(page) {
   links <- read_html(page)
   links %>% 
@@ -168,27 +173,25 @@ file_list1 <- file_list1 %>%
 file_list1 <- file_list1 %>%
   filter(links == stringr::str_match_all(string = links,pattern = ".*XPT")) %>%
   distinct(links,.keep_all = T)
-## example files for demographic and examinatio
 
-## first we make a function to read the data with XPT type from the links varaible  
-import_xpt <- function(links) {
-  df <- haven::read_xpt(links)
-  df
-}
 
-set.seed(1234)
 
-# randomly choose 3 examination file to download 
+# the links to the examination datasets for they years of 2001-2002 and 2017-2018 
 
 examination_links <- file_list1 %>%
-  filter(name == "examineation_links") %>%
-  sample_n(3)
+  filter(name == "examineation_links",BeginYear %in% c(2001,2017))
 
-# choose the demographic files from  demographic file to download 
+# the links to the demographics datasets for they years of 2001-2002 and 2017-2018 
+
 demographic_links <- file_list1 %>%
   filter(name == "demographic_links",BeginYear %in% c(2001,2017)) 
   
 
+## A function to read the data with XPT type from the links  
+import_xpt <- function(links) {
+  df <- haven::read_xpt(links)
+  df
+}
 
 
 ## download the demographic files
@@ -198,43 +201,130 @@ demographic_data <- demographic_links %>%
   unnest(data1,names_repair = "minimal")
 
 
+## note: this is a very large dataset (142,875 obs and 1885 columns). So, if you want to have all the years from 1999-2000 till 2017-2018 you need more or less about 10 GB of space just for examination data
 
-examination_data <- examination %>%
+examination_data <- examination_links %>%
   mutate(data1 = map(links,import_xpt))  %>%
   unnest(data1,names_repair = "minimal")
 
 ```
 
-## Varaibles Name Repair
+## Fixing the names
+
+If you would like to replace the variable names to their lable, you can run the following the codes. 
 
 ```{r}
-library(stringr)
-var_names_demographic_page <- read_html("https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.htm#SEQN")
+## create a dataset including the links to the data
+name_list <-  tibble(
+  BeginYear = seq.int(from = 1999,to = 2017,2),
+  EndYear = seq.int(from = 2000,to = 2018,2),
+  Year = paste0(BeginYear,sep="-",EndYear), 
+  demo_name_link = glue("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear={BeginYear}"),
+  examination_name_link =  glue("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear={BeginYear}"), 
+  
+  lab_name_link = glue("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear={BeginYear}")
+  
+  )
 
-var_names_demographic <-  var_names_demographic_page %>% 
+# pivot so we can map the functins to get the varaible names and labels. 
+ 
+name_list <- name_list %>%
+  pivot_longer(cols = contains("link"),names_to="name",values_to="page")
+
+
+## Function to get the links to the codebooks 
+names_get <- function(page) {
+  links <- read_html(page)
+  links %>% 
+    html_nodes(".text-left+ .text-center a") %>%
+    html_attr("href") %>% 
+    as_tibble() %>% 
+    rename("links" = "value") %>%
+    mutate(links=paste0("https://wwwn.cdc.gov",links)) %>%
+    distinct(links,.keep_all = T)
+
+}
+
+
+
+#Scrape the links
+name_list1 <- name_list %>% 
+  mutate(name_location = map(page, names_get))  %>%
+  unnest(name_location,names_repair = "minimal") 
+
+```
+
+## extract the names of the varaibles and their labels from codebooks.
+
+```{r}
+
+## function to scrape codebook
+codebook_get <- function(page) {
+  links <- read_html(page)
+  links %>% 
     html_nodes("#CodebookLinks a") %>%
-  html_text() %>%
-  as_tibble()
+    html_text() %>%
+    as_tibble(.names_repair="minimal") %>% 
+       rename("code" = "value")
+}
 
-var_names_demographic <- var_names_demographic %>%
-separate(value,into = c("current_name","var_name"),sep = "-") %>%
-  mutate(var_name = str_squish(var_name),
-         current_name =str_squish(current_name)
-         ) 
+## make a dataset including the codebooks 
+name_list2 <- name_list1 %>% 
+  mutate(code_location = map(links, codebook_get))  %>%
+  unnest(code_location,names_repair = "minimal")
 
-demographic_data1 <- demographic_data %>%
-  as.data.frame()
-var_names_demographic <- var_names_demographic %>%
-  as.data.frame()
+name_list3 <- name_list2  %>%
+   separate(col = code,into = c("var_name","var_label"),sep = "-",remove = T)
 
+## use str_squish to drop the possible white space. 
+name_list3 <- name_list3 %>%
+  mutate(var_name = stringr::str_squish(var_name),
+         var_label=stringr::str_squish(var_label))
 
-match(x=var_names_demographic[,"current_name"],names(demographic_data1))
-names(demographic_data1)[match(x=var_names_demographic[,"current_name"],names(demographic_data1))] = var_names_demographic[,"var_name"]
-demographic_data1 %>%
-  View()
+name_list3 %>%
+  mutate(Year = str_squish(Year)) %>%
+  count(Year)
 ```
+
+## Varaibles Name Repair: demographic file example 
+
+Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory data and all years.  
 
 ```{r}
-demographic
+
+
+name_list_deomgraphic <- name_list3 %>% 
+  filter(name=="demo_name_link") %>%
+  filter(Year == "2001-2002"|Year=="2017-2018")
+
+## use the janitor::clean_names() to transfer the names to lowercase
+demographic_data1 <- demographic_data %>%
+  janitor::clean_names() %>%
+    as.data.frame() 
+
+## use the tolower() function to transfer the names to lowercase
+
+name_list_deomgraphic <- name_list_deomgraphic %>%
+  mutate(var_name = tolower(var_name)) %>%
+      as.data.frame() 
+
+
+
+## kee the distinct var names 
+name_list_deomgraphic <- name_list_deomgraphic %>%
+  distinct(var_name,.keep_all = T)
+
+## use setnames() of data.table to change the name to labels (for better understanding)
+
+
+demographic_data1 <- setDT(demographic_data1)
+setnames(demographic_data1,old = as.character(name_list_deomgraphic$var_name),new =as.character(name_list_deomgraphic$var_label),skip_absent = T )
+
+# final data to use
+demographic_data1 <- demographic_data1 %>%
+  clean_names() %>%
+  select(-begin_year, -end_year,-page,-links)
+
 ```
+
 
