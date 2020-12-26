@@ -298,9 +298,9 @@ name_list_deomgraphic <- name_list3 %>%
   filter(Year == "2001-2002"|Year=="2017-2018")
 
 ## use the janitor::clean_names() to transfer the names to lowercase
-demographic_data1 <- demographic_data %>%
+demographic_data1 <- examination_data %>%
   janitor::clean_names() %>%
-    as.data.frame() 
+      as.data.frame()
 
 ## use the tolower() function to transfer the names to lowercase
 
@@ -327,4 +327,47 @@ demographic_data1 <- demographic_data1 %>%
 
 ```
 
+
+
+## Names repair examination file
+```{r}
+name_list_examination <- name_list3 %>% 
+  filter(name=="examination_name_link") %>%
+  filter(Year == "2001-2002"|Year=="2017-2018")
+
+## use the janitor::clean_names() to transfer the names to lowercase
+## ## also since the data set is relatively large and we only care about the variables names I keep the 1000 observations form eachyear
+
+examination_data1 <- examination_data %>%
+  janitor::clean_names() %>%
+  group_by(year) %>%
+  sample_n(1000) %>%
+    as.data.frame() %>%
+  ungroup()
+
+## use the tolower() function to transfer the names to lowercase
+
+name_list_examination <- name_list_examination %>%
+  mutate(var_name = tolower(var_name)) %>%
+      as.data.frame() 
+
+
+
+## keep the distinct var names 
+name_list_examination <- name_list_examination %>%
+  distinct(var_name,.keep_all = T)
+
+## use setnames() of data.table to change the name to labels (for better understanding)
+
+
+setnames(examination_data1,old = as.character(name_list_examination$var_name),new =as.character(name_list_examination$var_label),skip_absent = T )
+
+# final data to use
+examination_data1 <- examination_data1 %>%
+  clean_names() %>%
+  select(-begin_year, -end_year,-page,-links)
+examination_data1 %>%
+  ungroup() %>%
+  View()
+```
 
