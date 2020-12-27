@@ -1,5 +1,5 @@
 ---
-title: "Download NHANES"
+title: "Downloading All files in National Health and Nutrition Examination Survey (NHANES)"
 author: "S.H.Hosseini"
 date: "25/11/2020"
 output: html_document
@@ -9,14 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# National Health and Nutrition Examination Survey (NHANES)
+# 1. National Health and Nutrition Examination Survey (NHANES): Downloading and Joining Individual files.
 
-The National Health and Nutrition Examination Survey (NHANES) includes a series of data related the health and nutritional status of adults and children in the United States. You can find more information about NHANES here: https://www.cdc.gov/nchs/nhanes/about_nhanes.htm
+The National Health and Nutrition Examination Survey (NHANES) includes a series of data related the health and nutritional status of adults and children in the United States. You can find more information about NHANES here: <https://www.cdc.gov/nchs/nhanes/about_nhanes.htm>
 
-The data is available online and free of use. Here I only show how to download and join a couple of datasets. However, you can follow instructions below and combine as many as files as you require. 
+The data is available online and free of use. First, I only show how to download and join a couple of datasets. However, you can follow instructions below for downloading and joining all the data available since 1999.
 
-# The pacakges required
-To download and clean the data we require haven and tidyverse . Just in case we need to work with date and time vars we can install and load lubridate and hms. I also prefer to clean the vars names so I load janiotr to be able to use clean_names() function. 
+## 1.2. The pacakges required
+
+To download and clean the individual data files we require haven and tidyverse. Just in case we need to work with date and time variables we can install and load lubridate and hms. I also prefer to clean the variables names so I load janitor to be able to use clean_names() function.
+
+For the second task I need glue, rvest, stringr and data.table.
 
 ```{r}
 library(haven)
@@ -30,20 +33,19 @@ library(stringr)
 library(data.table)
 ```
 
+## 1.3. Download the files required
 
-# Download the files required
+NHANES includes several datasets including demographic data, dietary data, examination data and laboratory data. Each dataset could also include several files. For instance demographic dataset includes only one file. However, the examination data contains information about blood pressure, body measures, oral health etc.
 
-NHANES includes several datasets including demographic data, dietary data, examination data and laboratory data. Each dataset could also include several files. For instance demographic dataset includes only one file. However, the examination data contains information about blood pressure, body measures, oral health etc. 
+Here, we focus on few files including demographic, blood pressure, body measures, insulin and finally iron status (from laboratory datasets). These datasets were all collected in 2017-2018. Although, NHANES is not a longitudinal dataset, many studies tend to pool NAHNES data over years.
 
-Here, we focus on few files including demographic, blood pressure, body measures, and finally insulin an iron status (from laboratory datasets). These datasets were all collected in 2017-2018. Although, NHANES is not a longitudinal dataset, many studies tend to pool NAHNES data over years and I will show you how to do it later. 
+### 1.3.1. Download the demographic data
 
-## Download the demographic data
 To download the demographic data we can simply use the online address of the file. You could go to:
 
-https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=2017
+<https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=2017>
 
-, and then find the location of file under "Data File" that is in "xpt" format. 
-
+, and then find the location of file under "Data File" that is in "xpt" format.
 
 ```{r}
 demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.XPT") %>%
@@ -51,21 +53,15 @@ demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.
 
 ```
 
+demo_2017 includes several variables that might be confusing to use without knowing the labels. However, it is possible to use setnames() function of data.table to change the variables' names to their labels. In Section 2, it can be shown how to perfom this taks.
 
-demo_2017 includes several vars and I will not change the vars names for now because we are going to append 2017-2018 with other datasets so, we would better keep the columns as they are. 
+### 1.3.2. Download blood pressure and body measures from Examination Data along with insulin and iron status from Laboratory Dataset.
 
-## Download blood pressure and body measures from Examination Data along with insulin and iron status from Laboratory Dataset. 
+The Examination Data for 2017-2018 can be found here: <https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=2017>
 
-The Examination Data for 2017-2018 can be found here: https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=2017
+The Laboratory Data for 2017-2018 can be found here: <https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear=2017>
 
-[The Examination Data for 2017-2018 can be found here:] (https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=2017)
-
-
-The Laboratory Data for 2017-2018 can be found here: 
-https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear=2017
-
-It should be noted that there will be several missing values in the final dataset. This is because not every person participated in the primary sample was eligible to participate in the all the examinations or laboratory tests conducted. For instance, in the case of insulin data, only individuals above 12 years of age were taken into consideration.
-
+It should be noted that there will be several missing values in the final dataset. This is because not every person participated in the primary sample was eligible to participate in all of the examinations or laboratory tests conducted. For instance, in the case of insulin data, only individuals above 12 years of age were taken into consideration.
 
 ```{r}
 # blood pressure data
@@ -85,11 +81,15 @@ iron_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/FETIB_J
   clean_names()
 ```
 
-## Joining the datasets 
+## 1.4. Joining the datasets
 
-Each individual is assigned an ID stored in the seqn var and we are going to use seqn for joining the downloaded datasets. Here we can use left_join() function in dplyr however, it takes some times to include every dataset (example is provided below). So, it seems that join_all() function from plyr package is a less time consuming choice. Note that you are supposed to choose the type of JOIN in plyr::join_all() function that is left here. 
+Each individual is assigned an ID stored in the seqn variable that can be used for joining the downloaded datasets. Here one can use left_join() function in dplyr however, it takes some times to include every dataset (example is provided below). So, it seems that join_all() function from plyr package is a less time consuming choice. Note that the type of JOIN in plyr::join_all() function should be chosen that is "left" in this case.
+
+Note: As it is noted by plyr package documentation "loading plyr and dplyr packages in the same time is likely to cause problems.If you need functions from both plyr and dplyr, please load plyr first, then dplyr"
 
 ```{r}
+library(plyr)
+library(dplyr)
 ## using dplyr to join 3 datasts. 
 nh_2017_dplyr <- left_join(x = demo_2017,y = blood_pressure_2017,by="seqn") %>%
               left_join(.,body_measures_2017,by="seqn")
@@ -100,41 +100,20 @@ nh_2017 <- plyr::join_all(dfs = list(demo_2017,body_measures_2017,blood_pressure
 
 ```
 
+# 2. Importing all data files into one dataset
 
+The instructions below contains the code required to download all the data files available at NHANES webpage since 1999. The rvest package is used for facilitating web scraping in R that can be also used downloading the dataset required.
 
-## Cleaning the created dataset
+Initially, the links for examination,laboratory, demographic and dietary data are created , using pivot_longer the the created dataset is reshaped to be used for downloading the data.
 
-The file created here includes 9254 observations and 98 variables. Using the documentations for each file I am going to keep only a subset of columns as an example. 
-
-For instance the 2017-2018 documentation of demographic file can be found here: 
-
-## Variable in Deomgraphic File
+## 2.1. identifying the links to the datasets and downloading their links 
 
 ```{r}
-nh_2017 <- nh_2017 %>%
-  select(seqn,
-         cycle = sddsrvyr,
-         gender = riagendr,
-         age = ridageyr, 
-         race = ridreth3, 
-         birth_country = 
-         )
 
-
-## race=1 -> mexaican-american,race=2 -> hispanic, race=3 -> white, race=4 -> black, race=5 -> 
-```
-
-# Importing all data files into one dataset
-
-Below, you could find the codes to download all the data files available at NHANES webpage since 1999. I used rvest package facilitating web scraping in R.  
-
-Initially, I created the links for examination,laboratory, demographic and dietary data, then I reshape the dataset incluidng the links so I can map a function to each link.  
-
-## links to the datasets
-```{r}
+# initial dataset including the primary links to the files locations 
 file_list <- tibble(
-  BeginYear = seq.int(from = 1999,to = 2017,2),
-  EndYear = seq.int(from = 2000,to = 2018,2),
+  BeginYear = seq.int(from = 1999,to = 2017,by = 2), ## the data is available for 1999-2000, 2001-2003, etc.
+  EndYear = seq.int(from = 2000,to = 2018,by = 2),## the data is available for 1999-2000, 2001-2003, etc.
   Year = paste0(BeginYear,sep="-",EndYear), 
   examineation_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Examination&CycleBeginYear=",BeginYear),
   labratory_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Laboratory&CycleBeginYear=",BeginYear),
@@ -142,39 +121,62 @@ file_list <- tibble(
   dietary_links = paste0("https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Dietary&CycleBeginYear=",BeginYear) 
 )
 
-# pivot so we can map the functions to the links 
+# pivot longer to reshape dataset above so we can map a function to the links
 file_list <- file_list %>%
   pivot_longer(cols = contains("links"),names_to="name",values_to="page")
 
-## function links_get so it can get the address for the datasets
-links_get <- function(page) {
-  links <- read_html(page)
-  links %>% 
+## function get_links_name so it can get the address for the datasets names
+get_links_name <- function(page) {
+ links <- read_html(page)
+ links %>% 
+    html_nodes("td.text-left") %>%
+    html_text() %>%
+    as.tibble() %>%
+   mutate(file_name= value) %>%
+   select(-value)
+}
+
+## function get_links_locations so it can get the address for the datasets locations
+
+get_links_locations <- function(page) {
+ links <- read_html(page)
+ links %>% 
     html_nodes(".text-center+ .text-center a") %>%
     html_attr("href") %>% 
-    as_tibble() %>% 
-    rename("links" = "value") %>%
-    mutate(links=paste0("https://wwwn.cdc.gov",links)) %>%
-    distinct(links,.keep_all = T)
-
+    as_tibble() %>%
+    mutate(download_links=paste0("https://wwwn.cdc.gov",value)) 
 }
 
 
-
-#Scrape the links
+#Scraping the links (names and locations)
 file_list1 <- file_list %>% 
-  mutate(files_location = map(page, links_get))
+  mutate(files_names = map(page, get_links_name),
+         files_location = map(page,get_links_locations )
+         )
+## unnest the links (names and locations)
+file_list2 <- file_list1 %>%
+  unnest(c(files_location,files_names) ,names_repair = "minimal")
 
-## unnest the links 
-file_list1 <- file_list1 %>%
-  unnest(files_location,names_repair = "minimal") 
+## keep the files whose types are XPT and drop possible duplicates
+file_list3 <- file_list2 %>%
+  filter(download_links == stringr::str_match_all(string = download_links,pattern = ".*XPT")) %>%
+  distinct(download_links,.keep_all = T)
 
-## keep the files whose types are XPT
-file_list1 <- file_list1 %>%
-  filter(links == stringr::str_match_all(string = links,pattern = ".*XPT")) %>%
-  distinct(links,.keep_all = T)
+```
+
+## 2.2. Dowanload the data files 
+
+The links to the location of the files were identified above. However, if we need to download the the datasets we are required to takes a few more steps. One can use the codes below to download the all the files based on the years or the the data type (e.g. examination or demographic). Here the data tpye is used because later on it makes it easier to fix the variable names. The filter() function can be also used to include or exclude the years required
+
+```{r}
 
 
+
+```
+
+
+
+```{r}
 
 # the links to the examination datasets for they years of 2001-2002 and 2017-2018 
 
@@ -211,7 +213,7 @@ examination_data <- examination_links %>%
 
 ## Fixing the names
 
-If you would like to replace the variable names to their lable, you can run the following the codes. 
+Replacing the variable names to their labels, can be done using the codes below
 
 ```{r}
 ## create a dataset including the links to the data
@@ -226,7 +228,7 @@ name_list <-  tibble(
   
   )
 
-# pivot so we can map the functins to get the varaible names and labels. 
+# pivot so we can map the functins to get the variable names and labels. 
  
 name_list <- name_list %>%
   pivot_longer(cols = contains("link"),names_to="name",values_to="page")
@@ -247,14 +249,15 @@ names_get <- function(page) {
 
 
 
-#Scrape the links
+#Scraping the links
 name_list1 <- name_list %>% 
   mutate(name_location = map(page, names_get))  %>%
   unnest(name_location,names_repair = "minimal") 
+variables
 
 ```
 
-## extract the names of the varaibles and their labels from codebooks.
+## extract the names of the variables and their labels from codebooks.
 
 ```{r}
 
@@ -286,9 +289,9 @@ name_list3 %>%
   count(Year)
 ```
 
-## Varaibles Name Repair: demographic file example 
+## variables Name Repair: demographic file example
 
-Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory data and all years.  
+Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory data and all years.
 
 ```{r}
 
@@ -310,7 +313,7 @@ name_list_deomgraphic <- name_list_deomgraphic %>%
 
 
 
-## kee the distinct var names 
+## kee the distinct variable names 
 name_list_deomgraphic <- name_list_deomgraphic %>%
   distinct(var_name,.keep_all = T)
 
@@ -327,9 +330,8 @@ demographic_data1 <- demographic_data1 %>%
 
 ```
 
-
-
 ## Names repair examination file
+
 ```{r}
 name_list_examination <- name_list3 %>% 
   filter(name=="examination_name_link") %>%
@@ -353,7 +355,7 @@ name_list_examination <- name_list_examination %>%
 
 
 
-## keep the distinct var names 
+## keep the distinct variable names 
 name_list_examination <- name_list_examination %>%
   distinct(var_name,.keep_all = T)
 
@@ -370,4 +372,3 @@ examination_data1 %>%
   ungroup() %>%
   View()
 ```
-
