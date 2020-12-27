@@ -320,7 +320,7 @@ demographic_data1 <- demographic_data1 %>%
 
 ```
 
-## 2.4.1. Names repair examination file
+## 2.4.2. Names repair examination file
 
 ```{r}
 name_list_examination <- name_list3 %>% 
