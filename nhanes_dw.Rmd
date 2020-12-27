@@ -13,15 +13,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 The National Health and Nutrition Examination Survey (NHANES) includes a series of data related the health and nutritional status of adults and children in the United States. You can find more information about NHANES here: <https://www.cdc.gov/nchs/nhanes/about_nhanes.htm>
 
-The data is available online and free of use. First, I only show how to download and join a couple of datasets. However, you can follow instructions below for downloading and joining all the data available since 1999.
+The data is available online and free of use. First, I show how to download and join a couple of datasets from the NHANES webpage. However, you can follow instructions at Section 2 for downloading and joining all the data available since 1999.
 
 ## 1.2. The pacakges required
 
 To download and clean the individual data files we require haven and tidyverse. Just in case we need to work with date and time variables we can install and load lubridate and hms. I also prefer to clean the variables names so I load janitor to be able to use clean_names() function.
 
-For the second task I need glue, rvest, stringr and data.table.
+For the second task the primary packages required are glue, rvest, stringr and data.table.
 
-```{r}
+```{r,echo=F}
 library(haven)
 library(tidyverse)
 library(lubridate)
@@ -41,11 +41,11 @@ Here, we focus on few files including demographic, blood pressure, body measures
 
 ### 1.3.1. Download the demographic data
 
-To download the demographic data we can simply use the online address of the file. You could go to:
+To download the demographic data one can simply use the online address of the file at:
 
-<https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=2017>
+[Files locations](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Demographics&CycleBeginYear=2017)
 
-, and then find the location of file under "Data File" that is in "xpt" format.
+,and then find the location of file under "Data File" that is in "xpt" format.
 
 ```{r}
 demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.XPT") %>%
@@ -53,7 +53,7 @@ demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.
 
 ```
 
-demo_2017 includes several variables that might be confusing to use without knowing the labels. However, it is possible to use setnames() function of data.table to change the variables' names to their labels. In Section 2, it can be shown how to perfom this taks.
+demo_2017 includes several variables that might be confusing to use without knowing the labels. However, it is possible to use setnames() function of data.table to change the variables' names to their labels. In Section 2, it will be shown how to perfom this taks.
 
 ### 1.3.2. Download blood pressure and body measures from Examination Data along with insulin and iron status from Laboratory Dataset.
 
@@ -85,7 +85,7 @@ iron_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/FETIB_J
 
 Each individual is assigned an ID stored in the seqn variable that can be used for joining the downloaded datasets. Here one can use left_join() function in dplyr however, it takes some times to include every dataset (example is provided below). So, it seems that join_all() function from plyr package is a less time consuming choice. Note that the type of JOIN in plyr::join_all() function should be chosen that is "left" in this case.
 
-Note: As it is noted by plyr package documentation "loading plyr and dplyr packages in the same time is likely to cause problems.If you need functions from both plyr and dplyr, please load plyr first, then dplyr"
+**Note**: As it is noted by plyr package documentation "loading plyr and dplyr packages in the same time is likely to cause problems.If you need functions from both plyr and dplyr, please load plyr first, then dplyr"
 
 ```{r}
 library(plyr)
@@ -102,11 +102,11 @@ nh_2017 <- plyr::join_all(dfs = list(demo_2017,body_measures_2017,blood_pressure
 
 # 2. Importing all data files into one dataset
 
-The instructions below contains the code required to download all the data files available at NHANES webpage since 1999. The rvest package is used for facilitating web scraping in R that can be also used downloading the dataset required.
+The instructions below contains the codes required to download all the data files available at NHANES webpage since 1999. The rvest package is used for facilitating web scraping in R that can be also used for downloading the dataset required.
 
-Initially, the links for examination,laboratory, demographic and dietary data are created , using pivot_longer the the created dataset is reshaped to be used for downloading the data.
+Initially, the links for examination,laboratory, demographic and dietary data are created , using pivot_longer the the created dataset is reshaped to be used for downloading the data. Thanks to the map() and unnest() functions these tasks can be done using a few lines of codes.
 
-## 2.1. identifying the links to the datasets and downloading their links 
+## 2.1. identifying the links to the datasets and downloading their links
 
 ```{r}
 
@@ -148,7 +148,7 @@ get_links_locations <- function(page) {
 }
 
 
-#Scraping the links (names and locations)
+## Scraping the links (names and locations)
 file_list1 <- file_list %>% 
   mutate(files_names = map(page, get_links_name),
          files_location = map(page,get_links_locations )
@@ -164,10 +164,9 @@ file_list3 <- file_list2 %>%
 
 ```
 
-## 2.2. Dowanload the data files 
+## 2.2. Download the data files
 
-The links to the location of the files were identified above. However, if we need to download the the datasets we are required to takes a few more steps. One can use the codes below to download the all the files based on the data type (e.g. examination or demographic) and files. 
-
+The links to the location of the files were identified above. However, if we need to download the the datasets we are required to takes a few more steps. One can use the codes below to download all the files based on the data type (e.g. examination or demographic).
 
 ```{r}
 
@@ -206,7 +205,7 @@ examination_data <- examination_links %>%
 
 ## 2.3. Fixing the names
 
-Replacing the variable names to their labels, can be done using the codes below. The same procedure as section 2.2. is followed here.  
+Replacing the variable names to their labels, can be done using the codes below. The same procedure as section 2.2. is followed here. However, later in Section 2.4, setnames() function of data.table is used for replacing the variable names with their labels.
 
 ```{r}
 ## create a dataset including the links to the data
@@ -281,10 +280,9 @@ name_list3 <- name_list3 %>%
 
 ## 2.4.1. variables Name Repair: demographic file example
 
-Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory data and all years.
+Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory datasets.
 
 ```{r}
-
 
 name_list_deomgraphic <- name_list3 %>% 
   filter(name=="demo_name_link") %>%
@@ -311,6 +309,7 @@ name_list_deomgraphic <- name_list_deomgraphic %>%
 
 
 demographic_data1 <- setDT(demographic_data1)
+
 setnames(demographic_data1,old = as.character(name_list_deomgraphic$var_name),new =as.character(name_list_deomgraphic$var_label),skip_absent = T )
 
 # final data to use
@@ -320,7 +319,7 @@ demographic_data1 <- demographic_data1 %>%
 
 ```
 
-## 2.4.2. Names repair examination file
+## 2.4.2. Names repair: examination file
 
 ```{r}
 name_list_examination <- name_list3 %>% 
