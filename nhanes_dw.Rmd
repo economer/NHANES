@@ -166,26 +166,19 @@ file_list3 <- file_list2 %>%
 
 ## 2.2. Dowanload the data files 
 
-The links to the location of the files were identified above. However, if we need to download the the datasets we are required to takes a few more steps. One can use the codes below to download the all the files based on the years or the the data type (e.g. examination or demographic). Here the data tpye is used because later on it makes it easier to fix the variable names. The filter() function can be also used to include or exclude the years required
-
-```{r}
-
-
-
-```
-
+The links to the location of the files were identified above. However, if we need to download the the datasets we are required to takes a few more steps. One can use the codes below to download the all the files based on the data type (e.g. examination or demographic) and files. 
 
 
 ```{r}
 
 # the links to the examination datasets for they years of 2001-2002 and 2017-2018 
 
-examination_links <- file_list1 %>%
+examination_links <- file_list3 %>%
   filter(name == "examineation_links",BeginYear %in% c(2001,2017))
 
 # the links to the demographics datasets for they years of 2001-2002 and 2017-2018 
 
-demographic_links <- file_list1 %>%
+demographic_links <- file_list3 %>%
   filter(name == "demographic_links",BeginYear %in% c(2001,2017)) 
   
 
@@ -199,21 +192,21 @@ import_xpt <- function(links) {
 ## download the demographic files
 
 demographic_data <- demographic_links %>%
-  mutate(data1 = map(links,import_xpt))  %>%
+  mutate(data1 = map(download_links,import_xpt))  %>%
   unnest(data1,names_repair = "minimal")
 
 
 ## note: this is a very large dataset (142,875 obs and 1885 columns). So, if you want to have all the years from 1999-2000 till 2017-2018 you need more or less about 10 GB of space just for examination data
 
 examination_data <- examination_links %>%
-  mutate(data1 = map(links,import_xpt))  %>%
+  mutate(data1 = map(download_links,import_xpt))  %>%
   unnest(data1,names_repair = "minimal")
 
 ```
 
-## Fixing the names
+## 2.3. Fixing the names
 
-Replacing the variable names to their labels, can be done using the codes below
+Replacing the variable names to their labels, can be done using the codes below. The same procedure as section 2.2. is followed here.  
 
 ```{r}
 ## create a dataset including the links to the data
@@ -253,11 +246,10 @@ names_get <- function(page) {
 name_list1 <- name_list %>% 
   mutate(name_location = map(page, names_get))  %>%
   unnest(name_location,names_repair = "minimal") 
-variables
 
 ```
 
-## extract the names of the variables and their labels from codebooks.
+## 2.4. extract the names of the variables and their labels from codebooks.
 
 ```{r}
 
@@ -284,12 +276,10 @@ name_list3 <- name_list3 %>%
   mutate(var_name = stringr::str_squish(var_name),
          var_label=stringr::str_squish(var_label))
 
-name_list3 %>%
-  mutate(Year = str_squish(Year)) %>%
-  count(Year)
+
 ```
 
-## variables Name Repair: demographic file example
+## 2.4.1. variables Name Repair: demographic file example
 
 Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to examination and laboratory data and all years.
 
@@ -330,7 +320,7 @@ demographic_data1 <- demographic_data1 %>%
 
 ```
 
-## Names repair examination file
+## 2.4.1. Names repair examination file
 
 ```{r}
 name_list_examination <- name_list3 %>% 
