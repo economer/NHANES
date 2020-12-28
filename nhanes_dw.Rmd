@@ -410,14 +410,14 @@ name_list3 <- name_list3 %>%
   distinct(var_name,.keep_all = T)
 
 
-setnames(x = selected_data,old = as.character(name_list3$var_name),new = as.character(name_list3$var_label),skip_absent = T)
+setnames(x = selected_data_map,old = as.character(name_list3$var_name),new = as.character(name_list3$var_label),skip_absent = T)
 
-selected_data_with_names <- selected_data %>%
+selected_data_map <- selected_data_map %>%
   clean_names() %>%
   select(-page, -value, -download_links,-filter1, -filter2, -filter3)
 
 ## final dataset: for some reasons the respondent_sequence_number (id number of each individual) are duplicated, so simply use distinct() function to drop the duplicates. 
-selected_data <- selected_data %>%
+selected_data_map <- selected_data_map %>%
     distinct(respondent_sequence_number,.keep_all = T)
   
 
