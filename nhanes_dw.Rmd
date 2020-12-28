@@ -357,7 +357,5 @@ setnames(examination_data1,old = as.character(name_list_examination$var_name),ne
 examination_data1 <- examination_data1 %>%
   clean_names() %>%
   select(-begin_year, -end_year,-page,-links)
-examination_data1 %>%
-  ungroup() %>%
-  View()
+
 ```
