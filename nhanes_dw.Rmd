@@ -422,3 +422,5 @@ selected_data_map <- selected_data_map %>%
   
 
 ```
+
+use splice to split the data based on year file types and then join them for each year
