@@ -49,6 +49,7 @@ To download the demographic data one can simply use the online address of the fi
 ,and then find the location of file under "Data File" that is in "xpt" format.
 
 ```{r}
+
 demo_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/DEMO_J.XPT") %>%
   clean_names()
 
@@ -65,6 +66,7 @@ The Laboratory Data for 2017-2018 can be found here: <https://wwwn.cdc.gov/nchs/
 It should be noted that there will be several missing values in the final dataset. This is because not every person participated in the primary sample (i.e. demographic) was eligible to participate in all of the examinations or laboratory tests conducted. For instance, in the case of insulin data, only individuals above 12 years of age were eligible to be tested for measuring insulin levels.
 
 ```{r}
+
 # blood pressure data
 blood_pressure_2017 <- read_xpt(file = "https://wwwn.cdc.gov/Nchs/Nhanes/2017-2018/BPX_J.XPT") %>%
   clean_names()
@@ -134,7 +136,7 @@ get_links_name <- function(page) {
  links %>% 
     html_nodes("td.text-left") %>%
     html_text() %>%
-    as.tibble() %>%
+    as_tibble() %>%
    mutate(file_name= value) %>%
    select(-value)
 }
@@ -165,25 +167,45 @@ file_list3 <- file_list2 %>%
   filter(download_links == stringr::str_match_all(string = download_links,pattern = ".*XPT")) %>%
   distinct(download_links,.keep_all = T)
 
+#write_csv(file_list3,"file_list3.csv")
+#file_list3 <- read_csv("file_list3.csv")
+#
 ```
 
 ## 2.2. Download the data files
 
-The links to the location of the files were identified above. However, if we need to download the the datasets we are required to take a few more steps. One can use the codes below to download all the files based on the data type (e.g. examination or demographic).
+The links to the location of the files were identified above. However, if we need to download the the datasets we are required to take a few more steps. One can use the codes below to download all the files based on the data type (e.g. examination or demographic) and file name.
 
-**NOTE**: If you are interested in a downloading individual datasets such as body measures, insulin, demographic and so on across specific years, you can jump to Section 2.5.
+Usually a few subsets of the examination or laboratory files are required for a study. Therefore creating a dataset for each file seems to be tidyer than downloading all files at once.
+
+```{r}
+file_list3 %>%
+  ungroup() %>%
+  count(name, file_name)
+```
 
 ```{r}
 
-# the links to the examination datasets for they years of 2001-2002 and 2017-2018 
+# the links to the examination datasets for blood pressure files 
+# here the str_detect is used for filtering file names containing Blood Pressure.
 
 examination_links <- file_list3 %>%
-  filter(name == "examineation_links",BeginYear %in% c(2001,2017))
+  filter(name == "examineation_links",
+         str_detect(string = file_name,pattern = "^[bB]lood [pP]ressure.*")
+         )
 
-# the links to the demographics datasets for they years of 2001-2002 and 2017-2018 
+# the links to the laboratory datasets for Albumin & Creatinine - Urine files 
+# here the str_detect is used for filtering file names containing Albumin
+laboratory_links <- file_list3 %>%
+  filter(name == "labratory_links",
+         str_detect(string = file_name,pattern = "^Albumin")
+         )
+
+
+# the links to the demographics datasets
 
 demographic_links <- file_list3 %>%
-  filter(name == "demographic_links",BeginYear %in% c(2001,2017)) 
+  filter(name == "demographic_links") 
   
 
 ## A function to read the data with XPT type from the links  
@@ -200,12 +222,25 @@ demographic_data <- demographic_links %>%
   unnest(data1,names_repair = "minimal")
 
 
-## note: the codes below redner a very large dataset (142,875 observations and 1885 columns). So, if you want to have all the years from 1999-2000 till 2017-2018 you need more or less about 10 GB of space just for the examination data
+## download the examination files
 
 examination_data <- examination_links %>%
   mutate(data1 = map(download_links,import_xpt))  %>%
   unnest(data1,names_repair = "minimal")
 
+
+## download the laboratory files
+
+laboratory_data <- examination_links %>%
+  mutate(data1 = map(download_links,import_xpt))  %>%
+  unnest(data1,names_repair = "minimal")
+
+
+## Joining the datasets. 
+joined_dfs <- plyr::join_all(dfs = list(demographic_data,examination_data,laboratory_data),by = "SEQN",type = "full")
+
+joined_dfs %>%
+  View()
 ```
 
 ## 2.3. Fixing the names
@@ -239,7 +274,7 @@ get_names <- function(page) {
     html_attr("href") %>% 
     as_tibble() %>% 
     rename("links" = "value") %>%
-    mutate(links=glue::glue("https://wwwn.cdc.gov/{links}")) 
+    mutate(links=glue::glue("https://wwwn.cdc.gov{links}")) 
 
 }
 
@@ -251,6 +286,7 @@ name_list1 <- name_list %>%
          )  %>%
   unnest(name_location,names_repair = "minimal") %>%
   filter(str_detect(string = links,pattern = ".*htm.*"))
+
 ```
 
 ## 2.4. Extract the names of the variables and their labels from codebooks.
@@ -274,9 +310,11 @@ name_list2 <- name_list1 %>%
   unnest(code_location,names_repair = "minimal")
 
 
-## use separate() function to separte code to var name and var labales
-name_list3 <- name_list2  %>%
-   separate(col = code,into = c("var_name","var_label"),sep = "-",remove = T)
+
+## use separate() function to separate code to var name and var labels
+name_list3 <- separate(data = name_list2, col = code,into = c("var_name","var_label"), sep = " - ",extra = "merge") 
+
+
 
 ## use str_squish to drop the possible white space. 
 name_list3 <- name_list3 %>%
@@ -285,100 +323,58 @@ name_list3 <- name_list3 %>%
 
 ## write and read the created file
 
+
+#write_csv(x = name_list2,"name_list2.csv")
+#name_list2 <- read_csv("name_list2.csv")
+
 #write_csv(x = name_list3,"name_list3.csv")
 #name_list3 <- read_csv("name_list3.csv")
-```
+#
 
-### 2.4.1. variables Name Repair: demographic file example
-
-Here you can find the codes to change the names based on their labels for demographic files. The same can be applied to the examination and the laboratory datasets.
-
-```{r}
-## keep the demographic files for years 2001-2002 and 2017-2018
-name_list_deomgraphic <- name_list3 %>% 
-  filter(name=="demo_name_link") %>%
-  filter(Year == "2001-2002"|Year=="2017-2018")
-
-## use the janitor::clean_names() to transfer the names to lowercase
-demographic_data1 <- examination_data %>%
-  janitor::clean_names() %>%
-      as.data.frame()
-
-## use the tolower() function to transfer the names to lowercase
-
-name_list_deomgraphic <- name_list_deomgraphic %>%
-  mutate(var_name = tolower(var_name)) %>%
-      as.data.frame() 
-
-
-
-## kee the distinct variable names 
-name_list_deomgraphic <- name_list_deomgraphic %>%
-  distinct(var_name,.keep_all = T)
-
-## use setnames() of data.table to change the name to labels (for better understanding)
-
-# the old argument here is the var_name of the name_list_demographic dataset and the new argument is the var_lable. In this process, the var_name change to var_lable
-
-setnames(demographic_data1,old = as.character(name_list_deomgraphic$var_name),new =as.character(name_list_deomgraphic$var_label),skip_absent = T )
-
-# final data to use
-demographic_data1 <- demographic_data1 %>%
-  clean_names() %>%
-  select(-begin_year, -end_year,-page,-links)
 
 ```
 
-### 2.4.2. Names repair: the examination file
+## 2.5. variables Name Repair:
+
+Here you can find the codes to change the names based on their labels for all variables in joined_df dataset.
 
 ```{r}
 
-name_list_examination <- name_list3 %>% 
-  filter(name=="examination_name_link") %>%
-  filter(Year == "2001-2002"|Year=="2017-2018")
+## transform the variable names and variables labels to lower case and drop the duplicates
+name_list3 <- name_list3 %>%
+  mutate(
+    var_name = tolower(var_name),
+    var_label = tolower(var_label)) %>%
+  distinct(var_name,.keep_all = T) 
 
-## use the janitor::clean_names() to transfer the names to lowercase
-## ## also since the data set is relatively large and we only care about the variables names I keep the 1000 observations form eachyear
+## transform the variable names to lower case
+joined_dfs <- joined_dfs %>%
+  clean_names()
 
-examination_data1 <- examination_data %>%
-  janitor::clean_names() %>%
-  group_by(year) %>%
-  sample_n(1000) %>%
-    as.data.frame() %>%
-  ungroup()
-
-## use the tolower() function to transfer the names to lowercase
-
-name_list_examination <- name_list_examination %>%
-  mutate(var_name = tolower(var_name)) %>%
-      as.data.frame() 
-
-
-
-## keep the distinct variable names 
-name_list_examination <- name_list_examination %>%
-  distinct(var_name,.keep_all = T)
-
-## use setnames() of data.table to change the name to labels (for better understanding)
-
-
-setnames(examination_data1,old = as.character(name_list_examination$var_name),new =as.character(name_list_examination$var_label),skip_absent = T )
+## use setnames() to change the varibale names to their labels. 
+##  
+setnames(joined_dfs,old = as.character(name_list3$var_name),new =as.character(name_list3$var_label),skip_absent = T )
 
 # final data to use
-examination_data1 <- examination_data1 %>%
-  clean_names() %>%
-  select(-begin_year, -end_year,-page,-links)
+joined_dfs1 <- joined_dfs %>%
+    as_tibble(.name_repair = "minimal") 
 
-
+name_list3 %>%
+  ungroup() %>%
+  as_tibble() %>%
+  group_by(var_label) %>%
+  dplyr::count(sort = T)
 ```
 
-## 2.5. Creating a dataset including body measures from the Examination Datasets along with insulin from Laboratory Datasets
+
+## 2.6. Creating a dataset including body measures from the Examination Datasets along with insulin from Laboratory Datasets
 
 Two sources created in sections 2.1 and 2.3 that are file_list3 and name_list3 are required for this task. First the required files' locations are selected and downloaded. Consequently, the names are fixed based on the name_list dataset.
 
-we use str_detect to create 3 variables called filter1, filter2 and filter3 that are TRUE if the names contain Insulin, Body Measure and Demographic. Since, the regex here can include every experssion with insulin and body measure, we will see that two files including Glycohemoglobin, Plasma Glucose, Serum C-peptid and Arthritis Body Measures are also included in the selected_data. Therefore, they are filterd out.
+we use str_detect to create 3 variables called filter1, filter2 and filter3 that are TRUE if the names contain Insulin, Body Measure and Demographic. Since, the regex here can include every expression with insulin and body measure, we will see that two files including Glycohemoglobin, Plasma Glucose, Serum C-peptid and Arthritis Body Measures are also included in the selected_data. Therefore, they are filtered out.
 
 ```{r}
+
 # use str_detect to filter the files required
 selected_data <-  file_list3 %>%
   mutate(filter1 = str_detect(string = file_name,pattern = ".*[I]nsulin*"), 
@@ -387,25 +383,45 @@ selected_data <-  file_list3 %>%
          ) %>%
   filter(filter1 ==T| filter2==T| filter3==T) %>%
   filter(!str_detect(string = file_name, pattern = ".*Glycohemoglobin, Plasma Glucose, Serum C-peptid.*")) %>%
-  filter(!str_detect(string = file_name,pattern = ".*Arthritis Body Measures.*"))
+  filter(!str_detect(string = file_name,pattern = ".*Arthritis Body Measures.*")) %>%
+  filter(BeginYear %in% c(1999,2017))
 
 
 
 ## function to download xpt files 
  import_xpt <- function(links) {
   df <- haven::read_xpt(links)
-  df
+  
  }
  
 ## use map to map the import_xpt() to the selected_data 
-selected_data_map <-selected_data %>%
-  mutate(data_files = map(download_links,import_xpt)) %>%
+selected_data_map <- selected_data %>%
+  group_by(Year) %>%
+  mutate(data_files = map(download_links,import_xpt))
+
+selected_data_map_unnest <- selected_data_map %>%
+  ungroup() %>%
+  group_by(Year) %>%
   unnest(data_files)
+
+selected_data_map_unnest %>%
+  clean_names() %>%
+  View()
+
+selected_data_map <-selected_data %>%
+  mutate(data_files = map(download_links,import_xpt)) #%>%
+  unnest(data_files)
+  
+
+
 ```
 
-### 2.5.1. Name repair
+
+
+### 2.6.1. Name repair
 
 ```{r}
+
 name_list3 <- name_list3 %>%
   distinct(var_name,.keep_all = T)
 
@@ -416,11 +432,10 @@ selected_data_map <- selected_data_map %>%
   clean_names() %>%
   select(-page, -value, -download_links,-filter1, -filter2, -filter3)
 
-## final dataset: for some reasons the respondent_sequence_number (id number of each individual) are duplicated, so simply use distinct() function to drop the duplicates. 
+## final dataset: 
 selected_data_map <- selected_data_map %>%
-    distinct(respondent_sequence_number,.keep_all = T)
+  as_tibble(.name_repair = "minimal")
   
 
 ```
 
-use splice to split the data based on year file types and then join them for each year
