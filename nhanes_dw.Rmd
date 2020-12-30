@@ -396,12 +396,9 @@ selected_data <-  file_list3 %>%
  
 ## use map to map the import_xpt() to the selected_data 
 selected_data_map <- selected_data %>%
-  group_by(Year) %>%
   mutate(data_files = map(download_links,import_xpt))
 
 selected_data_map_unnest <- selected_data_map %>%
-  ungroup() %>%
-  group_by(Year) %>%
   unnest(data_files)
 
 selected_data_map_unnest %>%
