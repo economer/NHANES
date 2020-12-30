@@ -21,9 +21,9 @@ data_name allows us to choose the datasets of our choice. For instance, if one r
 
 download_nh(data_name = "insulin",year = c("2001-2002","2003-2004"))
 
-one can download more than one dataset if it is required. You have to use "|" to distinguish between the datasets inside data_name argument. For instance, if you require datasets including information about body measures and blood pressure you could use the function as follows: 
+one can download more than one dataset if it is required. The data_name argument accept regex so you have to use "|" to distinguish between the datasets inside data_name argument to get more than one dataset. For instance, if you require datasets including information about body measures and blood pressure you could use the function as follows: 
 
-download_nh(data_name = c("blood pressure|body measure"),year = "1999-2000")
+download_nh(data_name = c("blood pressure|body measure"),year = c("1999-2000","2017-2018"))
 
 
 
@@ -95,14 +95,18 @@ final_dataset
 
 
 
-download_nh(data_name = ,year = "1999-2000")
-
-file_list3 %>%
-  group_by(Year, file_name) %>%
-  count()
-
-download_nh(data_name = c("blood pressure|body measure"),year = "1999-2000")
-file_list3 %>%
-  filter(str_detect(string = file_name,pattern = c(".*blood pressure|.*body measure.*")),
-         Year=="1999-2000")
 ```
+
+## Examples
+
+```{r}
+
+# download insulin datasets for 1999-2002
+# 
+insulin_1999 <- download_nh(data_name = "insulin" ,year = "1999-2000",name_to_label = TRUE)
+
+## download blood pressure and body measure datasets for 1999-2000 and 2017-2018
+ 
+blood_pressure_body_measure <- download_nh(data_name = c("blood pressure|body measure"),year = c("1999-2000","2017-2018"))
+```
+
