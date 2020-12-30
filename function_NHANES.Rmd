@@ -26,7 +26,7 @@ one can download more than one dataset if it is required. The data_name argument
 download_nh(data_name = c("blood pressure|body measure"),year = c("1999-2000","2017-2018"))
 
 
-
+# FUNCTION to RUN 
 ```{r}
 
 download_nh <- function(data_name=NULL,year=c("1999-2000","2001-2002","2003-2004","2005-2006", "2007-2008", "2009-2010", "2011-2012", "2013-2014","2015-2016","2017-2018"),name_to_label=FALSE) {
@@ -100,7 +100,15 @@ final_dataset
 ## Examples
 
 ```{r}
+## NOTE: if you need to know the name of the datasets available for each year, you could run the following code and then use the names inside the data_name argument as instructed above. 
+file_list3 <- read_csv("https://raw.githubusercontent.com/economer/NHANES/master/file_list3.csv",progress = F) %>%
+  mutate(file_name = tolower(file_name))
 
+file_list3 %>%
+  group_by(Year, file_name) %>%
+  count()
+
+## 
 # download insulin datasets for 1999-2002
 # 
 insulin_1999 <- download_nh(data_name = "insulin" ,year = "1999-2000",name_to_label = TRUE)
