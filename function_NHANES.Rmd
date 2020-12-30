@@ -1,0 +1,108 @@
+---
+title: "Function_NHANES"
+author: "S.H.Hosseini"
+date: "30/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Function to download the NHANES data
+
+This function can be used to download all NHANES datasets for the years of your choice. download_nh() function has 3 arguments that are data_name, year and name_to_label. 
+
+by default the function download the selected datasets since 1999-2000. 
+
+by default the variables names are not converted to variables' labels -> so one would like to use the variables labels instead of their names, the argument name_to_label should change be set as TRUE.
+
+data_name allows us to choose the datasets of our choice. For instance, if one requires the datasets containing information about insulin for years 2001-2002 and 2003-2004 the function can be used as follows: 
+
+download_nh(data_name = "insulin",year = c("2001-2002","2003-2004"))
+
+one can download more than one dataset if it is required. You have to use "|" to distinguish between the datasets inside data_name argument. For instance, if you require datasets including information about body measures and blood pressure you could use the function as follows: 
+
+download_nh(data_name = c("blood pressure|body measure"),year = "1999-2000")
+
+
+
+```{r}
+
+download_nh <- function(data_name=NULL,year=c("1999-2000","2001-2002","2003-2004","2005-2006", "2007-2008", "2009-2010", "2011-2012", "2013-2014","2015-2016","2017-2018"),name_to_label=FALSE) {
+
+library(haven)
+library(tidyverse)
+library(janitor)
+library(glue)
+library(rvest)
+library(stringr)
+library(data.table)
+  
+file_list3 <- read_csv("https://raw.githubusercontent.com/economer/NHANES/master/file_list3.csv",progress = F) %>%
+  mutate(file_name = tolower(file_name))
+
+
+name_list3 <- read_csv("https://raw.githubusercontent.com/economer/NHANES/master/name_list3.csv",progress = F)
+
+## function to download xpt files 
+ import_xpt <- function(links) {
+  df <- haven::read_xpt(links)
+ }
+
+# use str_detect to filter the files required
+selected_data <-  file_list3 %>%
+  filter(str_detect(string = file_name,pattern = data_name),
+         Year == {{year}}
+         ) 
+# download the data selected 
+selected_data_map <- selected_data %>%
+  mutate(data_files = map(download_links,import_xpt))
+
+## select year and data files
+selected_data_map1 <- selected_data_map %>%
+  select(Year,file_name, data_files) 
+
+## convert the nested data frames to a list
+## 
+selected_data_map_list <- selected_data_map1 %>%
+  map(~list(.))
+
+## keep the datasets' lists 
+selected_data_map_list <- selected_data_map_list[["data_files"]][[1]]
+
+## Join the datasets by SEQN
+
+final_dataset <- plyr::join_all(dfs = selected_data_map_list,by = "SEQN",type = "full")
+
+if(name_to_label == TRUE) {
+  
+  name_list3 <- name_list3 %>%
+  distinct(var_name,.keep_all = T)
+  setnames(x = final_dataset,old = as.character(name_list3$var_name),new =
+           as.character(name_list3$var_label),skip_absent = T)
+  final_dataset <- final_dataset %>%
+    as_tibble(.name_repair = "minimal")
+
+final_dataset
+
+} else {
+    final_dataset
+}
+  
+} 
+
+
+
+
+download_nh(data_name = ,year = "1999-2000")
+
+file_list3 %>%
+  group_by(Year, file_name) %>%
+  count()
+
+download_nh(data_name = c("blood pressure|body measure"),year = "1999-2000")
+file_list3 %>%
+  filter(str_detect(string = file_name,pattern = c(".*blood pressure|.*body measure.*")),
+         Year=="1999-2000")
+```
