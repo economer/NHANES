@@ -1,26 +1,3 @@
----
-title: "GET_NHANES"
-author: "S.H.Hosseini"
-date: "01/01/2021"
-output: html_document
-runtime: shiny
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r}
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
-library(shiny)
 
 download_nh <- function(data_name=NULL,year=NULL,name_to_label=FALSE) {
     
@@ -139,20 +116,18 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+    library(tidyverse)
+    thedata <- reactive(download_nh(data_name = input$exp,year = input$year,name_to_label = input$label)) 
     
-    thedata <- reactive(download_nh(data_name = input$exp,year = input$year,name_to_label = input$label) %>%
-                            clean_names()
-    )
     
     output$str <- renderTable({
         
-        thedata() %>%
-            skimr::skim() 
+        skimr::skim(data = thedata()) 
     })
     
     output$table <- renderTable({
-        thedata() %>%
-            head(10)
+        head(x = thedata() ,10)
+            
         
     })
     
@@ -171,8 +146,6 @@ server <- function(input, output, session) {
     
 }
 
-shinyApp(ui, server)
 
-
-```
-
+shinyApp(ui = ui,server =  server)
+#write("options(shiny.autoload.r=FALSE)", ".Rprofile", append = TRUE)
