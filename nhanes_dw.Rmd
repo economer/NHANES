@@ -1,6 +1,6 @@
 ---
 title: "Downloading National Health and Nutrition Examination Survey (NHANES) Files"
-author: "S.H.Hosseini"
+author: "S.H.Pozveh"
 date: "25/11/2020"
 output:
   prettydoc::html_pretty:
